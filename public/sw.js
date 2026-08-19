@@ -77,30 +77,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle Static Assets (Images, Fonts, CSS, JS) with Cache-First / Stale-While-Revalidate
+  // Handle Static Assets (Images, Fonts, CSS, JS) with Stale-While-Revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return from cache immediately, then update cache in background
-        fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
+      const fetchPromise = fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && request.method === 'GET') {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
 
-      // If not in cache, fetch from network and store in cache
-      return fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && request.method === 'GET') {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-        }
-        return networkResponse;
-      });
-    })
+      return cachedResponse || fetchPromise;
+    }).catch(() => fetch(request))
   );
 });
 
