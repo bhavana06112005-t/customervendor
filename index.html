@@ -4,14 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     
-    <!-- Primary PWA Meta Tags -->
+    <!-- Primary PWA & SEO Meta Tags -->
     <title>🛒 VendorSaathi — Fresh Groceries Delivered in 20 Mins</title>
     <meta name="description" content="Order fresh vegetables, fruits, groceries and daily village essentials directly from local vendors with instant UPI payment and live GPS tracking." />
+    <meta name="keywords" content="VendorSaathi, groceries, village fresh, vegetable delivery, kirana store, instant UPI, Moodbidri" />
+    <meta name="author" content="VendorSaathi Team" />
     <meta name="theme-color" content="#059669" />
+    
+    <!-- Open Graph / Facebook / WhatsApp Preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="VendorSaathi — Fresh Groceries Delivered in 20 Mins" />
+    <meta property="og:description" content="Direct from village farms and local kirana stores. Order fresh vegetables, fruits and groceries with instant UPI." />
+    <meta property="og:image" content="/icons/icon-512.svg" />
+    <meta property="og:site_name" content="VendorSaathi" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VendorSaathi — Fresh Groceries Delivered in 20 Mins" />
+    <meta name="twitter:description" content="Direct from village farms and local kirana stores with instant UPI." />
+    <meta name="twitter:image" content="/icons/icon-512.svg" />
+
+    <!-- Web App Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Icons & Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/svg+xml" href="/icons/icon-192.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <link rel="mask-icon" href="/icons/icon-maskable.svg" color="#059669" />
 
@@ -30,7 +48,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- App Root with Instant Preloader to Prevent White Flash -->
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0fdf4; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color: #064e3b;">
+        <div style="width: 64px; height: 64px; border-radius: 20px; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 32px; box-shadow: 0 10px 25px rgba(5,150,105,0.2); margin-bottom: 16px; border: 1.5px solid #a7f3d0;">
+          🛒
+        </div>
+        <div style="font-weight: 900; font-size: 19px; color: #064e3b; margin-bottom: 4px;">VendorSaathi</div>
+        <div style="font-size: 13px; color: #059669; font-weight: 600; margin-bottom: 18px;">Loading Fresh Groceries...</div>
+        <div style="width: 32px; height: 32px; border: 3px solid #bbf7d0; border-top-color: #059669; border-radius: 50%; animation: vsPreloaderSpin 0.75s linear infinite;"></div>
+        <style>
+          @keyframes vsPreloaderSpin { to { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
+
+    <!-- Noscript Fallback -->
+    <noscript>
+      <div style="padding: 24px; text-align: center; font-family: sans-serif; background: #fef2f2; color: #991b1b;">
+        <h2>JavaScript Required</h2>
+        <p>Please enable JavaScript in your browser to run VendorSaathi.</p>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
