@@ -1,0 +1,45 @@
+{
+  "name": "VendorSaathi - Smart Rural Grocery Assistant",
+  "short_name": "VendorSaathi",
+  "description": "Order fresh vegetables, fruits, groceries and daily essentials directly from local village vendors.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#15803d",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["shopping", "food", "lifestyle", "business"],
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/hero-vendor-emblem.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Fresh Groceries",
+      "short_name": "Groceries",
+      "description": "Explore vegetables, fruits and dairy",
+      "url": "/",
+      "icons": [{ "src": "/logo.jpg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Nearby Local Vendors",
+      "short_name": "Vendors",
+      "description": "Find verified shops in your village",
+      "url": "/",
+      "icons": [{ "src": "/logo.jpg", "sizes": "96x96" }]
+    }
+  ]
+}

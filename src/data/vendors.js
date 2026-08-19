@@ -16,8 +16,8 @@ export const VENDORS = [
     verified: true,
     badge: 'Popular',
     categories: ['Vegetables', 'Fruits', 'Spices', 'Daily Essentials'],
-    image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+    image: '/vendors/vendor-1.jpg',
+    avatar: '/vendors/vendor-1.jpg',
     address: 'Near Alva’s Campus Entrance, Mijar, Moodbidri, Karnataka - 574225'
   },
   {
@@ -37,8 +37,8 @@ export const VENDORS = [
     verified: true,
     badge: 'Top Rated',
     categories: ['Grains', 'Spices', 'Dry Fruits', 'Grocery', 'Snacks'],
-    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
+    image: '/vendors/vendor-2.jpg',
+    avatar: '/vendors/vendor-2.jpg',
     address: 'Shop No 14, Bus Stand Complex, Moodbidri - 574227'
   },
   {
@@ -58,8 +58,8 @@ export const VENDORS = [
     verified: true,
     badge: 'Fast Delivery',
     categories: ['Vegetables', 'Fruits', 'Daily Essentials', 'Grocery'],
-    image: 'https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=600&q=80',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&q=80',
+    image: '/vendors/vendor-3.jpg',
+    avatar: '/vendors/vendor-3.jpg',
     address: 'Kallamundkur Junction, Belvai Post, Moodbidri - 574213'
   },
   {
@@ -79,8 +79,8 @@ export const VENDORS = [
     verified: true,
     badge: 'Super Nearby',
     categories: ['Grocery', 'Rice', 'Pulses', 'Spices'],
-    image: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=600&q=80',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+    image: '/vendors/vendor-4.jpg',
+    avatar: '/vendors/vendor-4.jpg',
     address: 'Opposite Primary Health Center, Mijar Village - 574225'
   }
 ];

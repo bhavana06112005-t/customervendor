@@ -7,7 +7,7 @@ export const CATEGORIES = [
     color: '#16a34a',
     bg: '#f0fdf4',
     itemCount: 42,
-    image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-1.jpg'
   },
   {
     id: 'fruits',
@@ -17,7 +17,7 @@ export const CATEGORIES = [
     color: '#ea580c',
     bg: '#fff7ed',
     itemCount: 28,
-    image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-2.jpg'
   },
   {
     id: 'spices',
@@ -27,7 +27,7 @@ export const CATEGORIES = [
     color: '#dc2626',
     bg: '#fef2f2',
     itemCount: 35,
-    image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-4.jpg'
   },
   {
     id: 'dry-fruits',
@@ -37,7 +37,7 @@ export const CATEGORIES = [
     color: '#b45309',
     bg: '#fffbeb',
     itemCount: 19,
-    image: 'https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-3.jpg'
   },
   {
     id: 'grains',
@@ -47,7 +47,7 @@ export const CATEGORIES = [
     color: '#854d0e',
     bg: '#fefce8',
     itemCount: 31,
-    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-8.jpg'
   },
   {
     id: 'grocery',
@@ -57,7 +57,7 @@ export const CATEGORIES = [
     color: '#0284c7',
     bg: '#f0f9ff',
     itemCount: 54,
-    image: 'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-8.jpg'
   },
   {
     id: 'daily-essentials',
@@ -67,7 +67,7 @@ export const CATEGORIES = [
     color: '#2563eb',
     bg: '#eff6ff',
     itemCount: 22,
-    image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-5.jpg'
   },
   {
     id: 'snacks',
@@ -77,6 +77,6 @@ export const CATEGORIES = [
     color: '#d97706',
     bg: '#fffbeb',
     itemCount: 26,
-    image: 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?auto=format&fit=crop&w=400&q=80'
+    image: '/products/product-7.jpg'
   }
 ];

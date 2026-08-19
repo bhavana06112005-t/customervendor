@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "dev": "npm run dev --prefix vendor-saathi-customer",
+    "build": "npm run build --prefix vendor-saathi-customer",
+    "preview": "npm run preview --prefix vendor-saathi-customer",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.13.0",

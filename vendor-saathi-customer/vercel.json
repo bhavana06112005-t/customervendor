@@ -1,7 +1,7 @@
 {
   "framework": "vite",
-  "buildCommand": "npm install --prefix vendor-saathi-customer && npm run build --prefix vendor-saathi-customer",
-  "outputDirectory": "vendor-saathi-customer/dist",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
     {

@@ -131,23 +131,21 @@ export const Navbar = () => {
             onClick={() => navigateTo('home')} 
             style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
           >
-            <div style={{ 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-              color: '#ffffff', 
-              width: '42px', 
-              height: '42px', 
-              borderRadius: '14px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              boxShadow: '0 6px 16px rgba(16, 185, 129, 0.35)',
-              transition: 'transform 0.2s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.06) rotate(-3deg)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1) rotate(0deg)'}
-            >
-              <ShoppingBag size={22} />
-            </div>
+            <img 
+              src="/logo.jpg" 
+              alt="VendorSaathi Logo" 
+              style={{ 
+                width: '44px', 
+                height: '44px', 
+                borderRadius: '50%', 
+                objectFit: 'cover', 
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                border: '2px solid #10b981',
+                transition: 'transform 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.06)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            />
             <div>
               <span style={{ 
                 fontFamily: 'var(--font-heading)',

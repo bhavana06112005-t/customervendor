@@ -16,7 +16,7 @@ export const PRODUCTS = [
     reviewCount: 120,
     isPopular: true,
     isOrganic: true,
-    image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-1.jpg',
     description: 'Fresh and juicy farm tomatoes sourced directly from local Moodbidri farms. Perfect for cooking, salads, and making Indian curries.'
   },
   {
@@ -36,7 +36,7 @@ export const PRODUCTS = [
     reviewCount: 98,
     isPopular: true,
     isOrganic: false,
-    image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-10.jpg',
     description: 'Clean, medium-sized potatoes. High starch content makes them ideal for frying, curries, and aloo parathas.'
   },
   {
@@ -56,7 +56,7 @@ export const PRODUCTS = [
     reviewCount: 110,
     isPopular: true,
     isOrganic: false,
-    image: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cf?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-1.jpg',
     description: 'Pungent and crisp red onions sourced fresh daily. Essential cooking staple for all South Indian & North Indian gravies.'
   },
   {
@@ -76,7 +76,7 @@ export const PRODUCTS = [
     reviewCount: 64,
     isPopular: true,
     isOrganic: true,
-    image: 'https://images.unsplash.com/photo-1627916607164-7b20241db935?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-4.jpg',
     description: 'Handpicked hot green chillies from local gardens. Adds intense flavor and spicy zest to chutneys, tadkas, and curries.'
   },
   {
@@ -96,7 +96,7 @@ export const PRODUCTS = [
     reviewCount: 88,
     isPopular: true,
     isOrganic: true,
-    image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-4.jpg',
     description: 'Authentic Karnataka Byadgi Red Chillies famous for vibrant red color and aromatic mild spiciness. Sourced directly from Byadgi market.'
   },
   {
@@ -116,7 +116,7 @@ export const PRODUCTS = [
     reviewCount: 76,
     isPopular: true,
     isOrganic: false,
-    image: 'https://images.unsplash.com/photo-1508061252966-f72886f45778?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-3.jpg',
     description: 'Crispy, crunchy premium California almonds packed with protein, Vitamin E, and essential nutrients.'
   },
   {
@@ -136,7 +136,7 @@ export const PRODUCTS = [
     reviewCount: 140,
     isPopular: true,
     isOrganic: false,
-    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-8.jpg',
     description: 'Long grain aged fragrant Basmati rice. Non-sticky, fluffy texture ideal for Biryani, Pulao, and steamed rice.'
   },
   {
@@ -156,7 +156,7 @@ export const PRODUCTS = [
     reviewCount: 310,
     isPopular: false,
     isOrganic: false,
-    image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=500&q=80',
+    image: '/products/product-5.jpg',
     description: 'Pasteurized KMF Nandini toned milk. Fresh daily delivery for morning tea, coffee, and family consumption.'
   }
 ];

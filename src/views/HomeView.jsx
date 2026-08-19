@@ -230,15 +230,16 @@ export const HomeView = () => {
                 border: '1px solid rgba(255, 255, 255, 0.18)'
               }}>
                 <img
-                  src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
-                  alt="Fresh Local Groceries"
+                  src="/hero-vendor-emblem.png"
+                  alt="VendorSaathi Smart Rural Grocery Assistant"
                   style={{
                     width: '100%',
                     height: '100%',
                     minHeight: '320px',
                     maxHeight: '440px',
                     aspectRatio: '16 / 10',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
+                    backgroundColor: '#ffffff',
                     display: 'block',
                     transition: 'transform 0.4s ease'
                   }}
