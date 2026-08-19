@@ -26,7 +26,8 @@ import {
   Navigation,
   Satellite,
   Crosshair,
-  Radio
+  Radio,
+  Download
 } from 'lucide-react';
 import { saveUserProfileToFirebase } from '../firebase';
 import { playSuccessChime, playPopSound } from '../utils/audio';
@@ -619,6 +620,38 @@ export const ProfileView = () => {
                   </div>
                 </div>
                 <ChevronRight size={16} color="#94a3b8" />
+              </button>
+
+              <button
+                onClick={() => {
+                  alert('To install the VendorSaathi PWA App:\n• Android / Chrome: Tap the 3 dots (⋮) and choose "Install App" or "Add to Home Screen".\n• iPhone / iPad (Safari): Tap Share (⬆) and select "Add to Home Screen".\n• Windows / Mac: Look for the Install icon (⊕) in your browser address bar.');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderRadius: '14px',
+                  backgroundColor: '#ecfdf5',
+                  border: '1.5px solid #a7f3d0',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d1fae5'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ecfdf5'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Smartphone size={18} color="#059669" />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <strong style={{ fontSize: '14px', color: '#064e3b', display: 'block' }}>Install Mobile PWA App</strong>
+                      <span className="badge" style={{ backgroundColor: '#059669', color: '#fff', fontSize: '9.5px', padding: '1px 6px', fontWeight: '900' }}>PWA 2.0</span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#047857' }}>Install on your home screen for instant offline access</span>
+                  </div>
+                </div>
+                <Download size={16} color="#059669" />
               </button>
             </div>
           </div>

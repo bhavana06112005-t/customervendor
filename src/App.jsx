@@ -14,6 +14,7 @@ import { VoiceSearchModal } from './components/VoiceSearchModal';
 import { VoiceAssistanceModal } from './components/VoiceAssistanceModal';
 import { VendorChatModal } from './components/VendorChatModal';
 import { NotificationToast } from './components/NotificationToast';
+import { InstallPwaBanner } from './components/InstallPwaBanner';
 
 import { HomeView } from './views/HomeView';
 import { CategoriesView } from './views/CategoriesView';
@@ -111,6 +112,7 @@ const MainContent = () => {
       <VoiceAssistanceModal />
       <VendorChatModal />
       <NotificationToast />
+      <InstallPwaBanner />
     </div>
   );
 };
