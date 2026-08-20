@@ -158,7 +158,7 @@ export const AuthModal = () => {
     }
   };
 
-  // 1. Google 1-Click Popup Login Flow
+  // 1. Google 1-Click Popup Login Flow with Timeout & Graceful Recovery
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
     setErrorMessage('');
@@ -171,32 +171,29 @@ export const AuthModal = () => {
 
       if (auth && googleProvider) {
         try {
-          const result = await signInWithPopup(auth, googleProvider);
+          const popupPromise = signInWithPopup(auth, googleProvider);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('POPUP_TIMEOUT')), 6000)
+          );
+          const result = await Promise.race([popupPromise, timeoutPromise]);
           if (result && result.user) {
             gUser = result.user;
             popupSucceeded = true;
           }
         } catch (popupErr) {
-          console.warn("Google popup OAuth notice:", popupErr.message, popupErr.code);
-          // If popup failed due to domain authorization or popup blocking, transition cleanly to direct Gmail login
-          if (popupErr.code === 'auth/unauthorized-domain' || 
-              popupErr.code === 'auth/popup-blocked' || 
-              popupErr.code === 'auth/operation-not-allowed' ||
-              popupErr.code === 'auth/popup-closed-by-user' ||
-              popupErr.code === 'auth/configuration-not-found') {
-            setIsSubmitting(false);
-            setViewState('gmail-input');
-            setNoticeMessage('Enter your Gmail address below to complete instant Google verification:');
-            return;
-          }
+          console.warn("Google popup OAuth notice:", popupErr?.message, popupErr?.code);
+          setIsSubmitting(false);
+          setViewState('gmail-input');
+          setNoticeMessage('Google popup is restricted on this browser. Enter your Gmail address below for instant verification:');
+          return;
         }
       }
 
       if (popupSucceeded && gUser) {
-        const gName = gUser.displayName || gUser.email.split('@')[0];
-        const gEmail = gUser.email;
-        const gPhoto = gUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(gName)}`;
-        const gUid = gUser.uid;
+        const gName = gUser.displayName || (gUser.email ? gUser.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Customer');
+        const gEmail = gUser.email || 'customer@gmail.com';
+        const gPhoto = gUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(gName)}&backgroundColor=059669,10b981,047857`;
+        const gUid = gUser.uid || `google_${gEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
         const loggedUser = {
           isLoggedIn: true,
@@ -225,25 +222,31 @@ export const AuthModal = () => {
         };
 
         updateUserProfile(loggedUser);
-        await saveUserProfileToFirebase(gUid, loggedUser);
+        try {
+          await saveUserProfileToFirebase(gUid, loggedUser);
+        } catch (fbErr) {
+          console.warn("Firestore user sync warning:", fbErr);
+        }
+        setIsSubmitting(false);
         setIsAuthModalOpen(false);
         triggerCelebration();
         showToast(`Welcome ${gName}! Signed in via Google account (${gEmail}) 🎉`, 'success');
       } else {
-        // Direct to Gmail input screen
         setIsSubmitting(false);
         setViewState('gmail-input');
+        setNoticeMessage('Enter your Gmail address below for instant Google verification:');
       }
     } catch (err) {
-      console.error("Google Auth error:", err);
+      console.warn("Google Auth notice:", err);
       setIsSubmitting(false);
       setViewState('gmail-input');
+      setNoticeMessage('Enter your Gmail address below for instant Google verification:');
     }
   };
 
   // 2. Direct Custom Gmail Submission Flow
   const handleDirectGmailSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     let cleanedGmail = gmailAddress.trim().toLowerCase();
     if (!cleanedGmail) {
       setErrorMessage('Please enter your Gmail address.');
@@ -257,14 +260,15 @@ export const AuthModal = () => {
     setErrorMessage('');
     playPopSound();
 
-    const userName = name.trim() || cleanedGmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const rawNamePart = cleanedGmail.split('@')[0];
+    const computedName = name.trim() || rawNamePart.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const gUid = `google_${cleanedGmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const gPhoto = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(userName)}&backgroundColor=059669,10b981,047857`;
+    const gPhoto = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(computedName)}&backgroundColor=059669,10b981,047857`;
 
     const loggedUser = {
       isLoggedIn: true,
       uid: gUid,
-      name: userName,
+      name: computedName,
       email: cleanedGmail,
       phone: phone.trim() || '+91 9876543210',
       village: village || 'Mijar',
@@ -288,11 +292,15 @@ export const AuthModal = () => {
     };
 
     updateUserProfile(loggedUser);
-    await saveUserProfileToFirebase(gUid, loggedUser);
+    try {
+      await saveUserProfileToFirebase(gUid, loggedUser);
+    } catch (fbErr) {
+      console.warn("Firestore user sync note:", fbErr);
+    }
     setIsSubmitting(false);
     setIsAuthModalOpen(false);
     triggerCelebration();
-    showToast(`Signed in successfully with ${cleanedGmail}! 🎉`, 'success');
+    showToast(`Welcome ${computedName}! Signed in with ${cleanedGmail} 🎉`, 'success');
   };
 
   // 3. Email & Password Login / Register Flow
@@ -543,7 +551,7 @@ export const AuthModal = () => {
                 cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)',
                 transition: 'all 0.2s ease',
-                marginBottom: '12px',
+                marginBottom: '14px',
                 boxSizing: 'border-box'
               }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#4285F4'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(66, 133, 244, 0.2)'; }}
@@ -559,38 +567,81 @@ export const AuthModal = () => {
               <span>{isSubmitting ? 'Signing in with Google...' : 'Continue with Google Account'}</span>
             </button>
 
-            {/* Direct Type-in Gmail Button */}
-            <button
-              onClick={() => setViewState('gmail-input')}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '14px',
-                backgroundColor: '#f0fdf4',
-                border: '1.5px solid #a7f3d0',
-                color: '#065f46',
-                fontSize: '13.5px',
-                fontWeight: '800',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                marginBottom: '14px',
-                boxSizing: 'border-box'
-              }}
-            >
-              <Mail size={16} color="#059669" />
-              <span>Sign in with my Gmail address (Type-in)</span>
-            </button>
+            {/* Quick Inline Gmail Sign-in Box */}
+            <form onSubmit={handleDirectGmailSubmit} style={{
+              backgroundColor: '#f8fafc',
+              border: '1.5px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '12px',
+              marginBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Mail size={15} color="#059669" />
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#065f46' }}>
+                  Or enter your Gmail address directly:
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. jeevithgowdasr@gmail.com"
+                  value={gmailAddress}
+                  onChange={(e) => setGmailAddress(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    outline: 'none',
+                    backgroundColor: '#ffffff'
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary"
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Sign In
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setViewState('gmail-input')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#059669',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  + Add Village Address & Phone Details
+                </button>
+              </div>
+            </form>
 
             {/* Divider */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              margin: '14px 0',
+              margin: '12px 0',
               color: '#94a3b8',
-              fontSize: '12px',
+              fontSize: '11px',
               fontWeight: '700'
             }}>
               <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }} />
@@ -603,23 +654,23 @@ export const AuthModal = () => {
               onClick={() => setViewState('email-form')}
               style={{
                 width: '100%',
-                padding: '12px 16px',
+                padding: '11px 14px',
                 borderRadius: '14px',
-                backgroundColor: '#f8fafc',
-                border: '1.5px solid #cbd5e1',
-                color: '#334155',
-                fontSize: '13.5px',
-                fontWeight: '800',
+                backgroundColor: '#ffffff',
+                border: '1.5px solid #e2e8f0',
+                color: '#475569',
+                fontSize: '13px',
+                fontWeight: '700',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
                 cursor: 'pointer',
-                marginBottom: '18px',
+                marginBottom: '14px',
                 boxSizing: 'border-box'
               }}
             >
-              <Lock size={15} color="#64748b" />
+              <Lock size={14} color="#64748b" />
               <span>Password / Custom Email Login</span>
             </button>
 

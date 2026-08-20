@@ -34,21 +34,21 @@ const INITIAL_LOCATION = {
 };
 
 const DEFAULT_USER = {
-  isLoggedIn: true,
-  uid: 'user_bhavana_01',
-  name: 'Bhavana Bai',
-  phone: '+91 9876543210',
-  email: 'bhavana.bai@gmail.com',
+  isLoggedIn: false,
+  uid: '',
+  name: '',
+  phone: '',
+  email: '',
   village: 'Mijar',
   town: 'Moodbidri',
   district: 'Dakshina Kannada',
   pincode: '574225',
-  address: 'Near Alva’s Campus Entrance, Mijar Village, Moodbidri - 574225',
-  landmark: 'Opposite Primary Health Center',
+  address: '',
+  landmark: '',
   preferredLanguage: 'en',
   role: 'customer', // 'customer' | 'vendor'
-  authProvider: 'google',
-  photoURL: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+  authProvider: '',
+  photoURL: '',
   gpsLocation: {
     lat: 13.06824,
     lng: 74.99612,
@@ -57,36 +57,11 @@ const DEFAULT_USER = {
     town: 'Moodbidri',
     district: 'Dakshina Kannada',
     pincode: '574225',
-    formattedAddress: 'Near Alva’s Campus Entrance, Mijar Village, Moodbidri - 574225',
+    formattedAddress: 'Mijar Village, Moodbidri - 574225',
     source: 'LIVE_GPS_VERIFIED',
     capturedAt: new Date().toISOString()
   },
-  addresses: [
-    {
-      id: 'addr1',
-      tag: 'Home',
-      name: 'Bhavana Bai',
-      phone: '+91 9876543210',
-      address: 'Near Alva’s Campus Entrance, Mijar Village, Moodbidri - 574225',
-      village: 'Mijar',
-      town: 'Moodbidri',
-      landmark: 'Opposite Primary Health Center',
-      pincode: '574225',
-      isDefault: true
-    },
-    {
-      id: 'addr2',
-      tag: 'Work',
-      name: 'Bhavana Bai',
-      phone: '+91 9876543210',
-      address: 'Main Market Road, Moodbidri - 574227',
-      village: 'Moodbidri Town',
-      town: 'Moodbidri',
-      landmark: 'Near Bus Stand Complex',
-      pincode: '574227',
-      isDefault: false
-    }
-  ]
+  addresses: []
 };
 
 // Initial cart from single vendor (Ramesh Grocery)
@@ -233,14 +208,16 @@ export const AppProvider = ({ children }) => {
         const remoteProfile = await getUserProfileFromFirebase(firebaseUser.uid);
         
         setUser(prev => {
+          const fallbackName = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : prev.name) || 'Customer';
           const updated = {
             ...prev,
             isLoggedIn: true,
             uid: firebaseUser.uid,
-            name: firebaseUser.displayName || prev.name || 'Customer',
+            name: fallbackName,
             email: firebaseUser.email || prev.email || 'customer@vendorsaathi.com',
             phone: firebaseUser.phoneNumber || (remoteProfile.data?.phone) || prev.phone || '+91 9876543210',
-            photoURL: firebaseUser.photoURL || prev.photoURL,
+            photoURL: firebaseUser.photoURL || prev.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fallbackName)}&backgroundColor=059669,10b981,047857`,
+            authProvider: 'google',
             ...(remoteProfile.data || {})
           };
           localStorage.setItem('vendorsaathi_current_user', JSON.stringify(updated));
