@@ -4,8 +4,8 @@ import { VENDORS } from '../data/vendors';
 import { Send, Phone, ArrowLeft, CheckCheck, Paperclip, Store, Sparkles, Mic } from 'lucide-react';
 
 export const VendorChatView = () => {
-  const { navigateTo, VENDORS } = useApp();
-  const vendor = VENDORS[0]; // Ramesh Grocery
+  const { navigateTo, selectedVendor, vendors } = useApp();
+  const vendor = selectedVendor || (vendors && vendors[0]) || VENDORS[0];
 
   const [messages, setMessages] = useState([
     { sender: 'customer', text: 'Hello Ramesh Gowda, is fresh tomato available today?', time: '10:20 AM' },
