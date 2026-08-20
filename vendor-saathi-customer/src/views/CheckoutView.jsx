@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   MapPin, 
@@ -13,30 +13,56 @@ import {
   QrCode,
   Sparkles,
   Zap,
-  Lock
+  Lock,
+  CreditCard,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { UpiPaymentModal } from '../components/UpiPaymentModal';
+import { processCardPayment } from '../services/stripeService';
+import { playSuccessChime } from '../utils/audio';
 
 export const CheckoutView = () => {
-  const { cart, user, placeOrder, navigateTo } = useApp();
+  const { cart, user, placeOrder, navigateTo, showToast } = useApp();
   const [selectedAddress, setSelectedAddress] = useState(user?.address || 'Mijar Village, Moodbidri, Karnataka - 574225');
   const [deliveryInstructions, setDeliveryInstructions] = useState('Call before arrival. Leave at front door if away.');
   const [deliverySlot, setDeliverySlot] = useState('instant'); // instant | evening | tomorrow
-  const [paymentMethod, setPaymentMethod] = useState('UPI'); // UPI | Cash on Delivery
-  const [upiId, setUpiId] = useState('bhavana@okaxis');
+  const [paymentMethod, setPaymentMethod] = useState('UPI'); // UPI | Card | Cash on Delivery
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
-  React.useEffect(() => {
+  // Stripe Card Payment State
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExp, setCardExp] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [cardName, setCardName] = useState(user?.name || 'Customer');
+  const [isProcessingCard, setIsProcessingCard] = useState(false);
+  const [cardError, setCardError] = useState('');
+
+  useEffect(() => {
     if (user?.address) {
       setSelectedAddress(user.address);
     }
-  }, [user?.address]);
+    if (user?.name) {
+      setCardName(user.name);
+    }
+  }, [user]);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   const deliveryFee = subtotal > 300 || subtotal === 0 ? 0 : 20;
   const total = subtotal + deliveryFee;
 
-  const handlePlaceOrderSubmit = (e) => {
+  const handleFillTestCard = (e) => {
+    e.preventDefault();
+    setCardNumber('4242 4242 4242 4242');
+    setCardExp('12/28');
+    setCardCvc('888');
+    setCardName(user?.name || 'Customer');
+    setCardError('');
+    showToast('🧪 Stripe Test Card details auto-filled!');
+  };
+
+  const handlePlaceOrderSubmit = async (e) => {
     e.preventDefault();
     if (cart.length === 0) {
       navigateTo('categories');
@@ -45,6 +71,65 @@ export const CheckoutView = () => {
 
     if (paymentMethod === 'UPI') {
       setIsUpiModalOpen(true);
+      return;
+    }
+
+    if (paymentMethod === 'Card') {
+      if (!cardNumber.trim() || !cardExp.trim() || !cardCvc.trim()) {
+        setCardError('Please enter card number, expiry date (MM/YY), and CVC.');
+        return;
+      }
+
+      setIsProcessingCard(true);
+      setCardError('');
+
+      try {
+        const [expMonth, expYear] = cardExp.split('/').map(s => s.trim());
+        const cardResult = await processCardPayment({
+          amount: total,
+          currency: 'inr',
+          cardNumber,
+          expMonth: expMonth || '12',
+          expYear: expYear || '28',
+          cvc: cardCvc,
+          cardholderName: cardName || user?.name || 'Customer',
+          customerEmail: user?.email || 'customer@vendorsaathi.com',
+          orderId: `VS${Math.floor(10000 + Math.random() * 90000)}`,
+          itemsSummary: cart.map(i => `${i.quantity}x ${i.product.shortName || i.product.name}`).join(', '),
+          vendorName: cart[0]?.product.vendorName || 'Ramesh Grocery'
+        });
+
+        try {
+          confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+          playSuccessChime();
+        } catch (err) {}
+
+        showToast(`Stripe Card Payment of ₹${total} Succeeded! 🎉`);
+
+        placeOrder({
+          items: cart.map(i => ({
+            id: i.product.id,
+            name: i.product.name,
+            price: i.product.price,
+            unit: i.product.unit,
+            quantity: i.quantity,
+            image: i.product.image
+          })),
+          subtotal,
+          deliveryFee,
+          total,
+          paymentMethod: `Credit / Debit Card (${cardResult.cardBrand || 'Visa'} •••• ${cardResult.cardLast4 || '4242'})`,
+          stripePaymentId: cardResult.paymentIntentId,
+          paymentStatus: `Paid via Stripe Card Gateway (${cardResult.paymentIntentId.slice(0, 16)})`,
+          deliveryAddress: selectedAddress,
+          vendorId: cart[0]?.product.vendorId || 'v1',
+          vendorName: cart[0]?.product.vendorName || 'Ramesh Grocery'
+        });
+      } catch (error) {
+        setCardError(error.message || 'Card payment processing failed. Please try again.');
+      } finally {
+        setIsProcessingCard(false);
+      }
       return;
     }
 
@@ -87,7 +172,8 @@ export const CheckoutView = () => {
       upiRefId: upiResult.upiRefId,
       upiVpa: upiResult.upiVpa,
       upiApp: upiResult.upiApp,
-      paymentStatus: upiResult.paymentStatus || `Paid via UPI (UTR #${upiResult.upiRefId})`,
+      stripePaymentId: upiResult.stripePaymentId,
+      paymentStatus: upiResult.paymentStatus || `Paid via Stripe UPI (UTR #${upiResult.upiRefId})`,
       deliveryAddress: selectedAddress,
       vendorId: cart[0]?.product.vendorId || 'v1',
       vendorName: cart[0]?.product.vendorName || 'Ramesh Grocery'
@@ -108,185 +194,170 @@ export const CheckoutView = () => {
           marginBottom: '20px',
           backgroundColor: '#ecfdf5',
           padding: '6px 14px',
-          borderRadius: '12px',
-          border: '1px solid #a7f3d0'
+          borderRadius: '20px',
+          border: '1px solid #a7f3d0',
+          cursor: 'pointer'
         }}
       >
         <ArrowLeft size={16} /> Back to Cart
       </button>
 
-      {/* Stepper Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <span className="badge badge-success" style={{ fontSize: '11.5px', padding: '4px 12px' }}>
-            <Zap size={13} color="#f59e0b" /> SECURE CHECKOUT
-          </span>
-        </div>
-        <h1 style={{ fontSize: '28px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.025em' }}>
-          Order Checkout & Delivery
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+          🛒 Final Review & Secure Checkout
         </h1>
-        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>
-          Choose your delivery destination, time slot, and preferred rural-friendly payment method.
+        <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', margin: 0 }}>
+          Select delivery slot, verify village address and choose instant UPI or Stripe payment.
         </p>
       </div>
 
-      <form onSubmit={handlePlaceOrderSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
-        {/* Left Column: Address, Delivery Slot, Payment Method */}
+      <form onSubmit={handlePlaceOrderSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px', alignItems: 'start' }}>
+        {/* Left Column: Delivery & Payment Options */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Step 1: Delivery Address */}
+          {/* Section 1: Delivery Address */}
           <div className="vs-card" style={{ padding: '24px', borderRadius: '24px', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-              <div style={{ 
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-                color: '#ffffff', 
-                padding: '9px', 
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <MapPin size={20} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ backgroundColor: '#ecfdf5', padding: '8px', borderRadius: '12px', color: '#059669' }}>
+                  <MapPin size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Delivery Location</h3>
+                  <span style={{ fontSize: '12px', color: '#059669', fontWeight: '700' }}>GPS Coordinates Calibrated</span>
+                </div>
               </div>
-              <div>
-                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>1. Delivery Address</h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Select your saved home or farm address</span>
-              </div>
+              <button 
+                type="button"
+                onClick={() => navigateTo('profile')}
+                style={{ fontSize: '12.5px', color: '#059669', fontWeight: '800', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Change Address
+              </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {user.addresses.map(addr => (
-                <label
-                  key={addr.id}
-                  style={{
-                    padding: '16px',
-                    borderRadius: '16px',
-                    border: selectedAddress === addr.address ? '2px solid #10b981' : '1.5px solid #e2e8f0',
-                    backgroundColor: selectedAddress === addr.address ? '#f0fdf4' : '#ffffff',
-                    display: 'flex',
-                    gap: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: selectedAddress === addr.address ? '0 4px 14px rgba(16, 185, 129, 0.12)' : 'none'
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={selectedAddress === addr.address}
-                    onChange={() => setSelectedAddress(addr.address)}
-                    style={{ accentColor: '#10b981', marginTop: '3px' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: '800' }}>
-                        {addr.tag} Address ({addr.name})
-                      </strong>
-                      {selectedAddress === addr.address && (
-                        <span className="badge badge-success" style={{ fontSize: '10px' }}>Selected</span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>{addr.address}</p>
-                    <span style={{ fontSize: '12px', color: '#059669', fontWeight: '700', display: 'block', marginTop: '4px' }}>
-                      📞 {addr.phone}
-                    </span>
-                  </div>
-                </label>
-              ))}
+            <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
+              <strong style={{ fontSize: '14px', color: '#0f172a', display: 'block' }}>{user?.name || 'Customer'}</strong>
+              <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                {selectedAddress}
+              </p>
+              <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                📞 Contact: <strong>{user?.phone || '+91 9876543210'}</strong>
+              </span>
             </div>
 
-            {/* Delivery Slot Selector */}
-            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-              <label style={{ fontSize: '13px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '8px' }}>
-                Delivery Slot
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setDeliverySlot('instant')}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    border: deliverySlot === 'instant' ? '2px solid #10b981' : '1px solid #cbd5e1',
-                    backgroundColor: deliverySlot === 'instant' ? '#ecfdf5' : '#ffffff',
-                    color: deliverySlot === 'instant' ? '#065f46' : '#475569',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span style={{ display: 'block', fontWeight: '800', color: deliverySlot === 'instant' ? '#059669' : '#0f172a' }}>
-                    ⚡ Instant Express
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>20–30 mins</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeliverySlot('evening')}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    border: deliverySlot === 'evening' ? '2px solid #10b981' : '1px solid #cbd5e1',
-                    backgroundColor: deliverySlot === 'evening' ? '#ecfdf5' : '#ffffff',
-                    color: deliverySlot === 'evening' ? '#065f46' : '#475569',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span style={{ display: 'block', fontWeight: '800', color: deliverySlot === 'evening' ? '#059669' : '#0f172a' }}>
-                    🌅 Evening Slot
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>5:00 PM – 7:00 PM</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Delivery Instructions */}
-            <div style={{ marginTop: '16px' }}>
+            <div>
               <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '6px' }}>
-                Delivery Note for Rider (Optional)
+                Delivery Instructions for Village Rider (Optional):
               </label>
               <input
                 type="text"
-                placeholder="e.g. Call before arrival, leave at gate..."
                 value={deliveryInstructions}
                 onChange={(e) => setDeliveryInstructions(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '11px 14px', 
-                  borderRadius: '12px', 
-                  border: '1.5px solid #cbd5e1', 
-                  fontSize: '13px', 
+                placeholder="e.g. Near yellow gate, call when at junction..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '13px',
+                  color: '#0f172a',
                   outline: 'none',
-                  backgroundColor: '#ffffff'
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
           </div>
 
-          {/* Step 2: Payment Method */}
+          {/* Section 2: Delivery Slot */}
           <div className="vs-card" style={{ padding: '24px', borderRadius: '24px', backgroundColor: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-              <div style={{ 
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
-                color: '#ffffff', 
-                padding: '9px', 
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#eff6ff', padding: '8px', borderRadius: '12px', color: '#2563eb' }}>
+                <Clock size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Delivery Speed & Time Slot</h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Delivered directly from nearest local vendor</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setDeliverySlot('instant')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '16px',
+                  border: deliverySlot === 'instant' ? '2px solid #059669' : '1.5px solid #e2e8f0',
+                  backgroundColor: deliverySlot === 'instant' ? '#f0fdf4' : '#ffffff',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <Sparkles size={16} color="#059669" />
+                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>⚡ Instant (20 Mins)</strong>
+                </div>
+                <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: '700', display: 'block' }}>Rider departing immediately</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeliverySlot('evening')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '16px',
+                  border: deliverySlot === 'evening' ? '2px solid #059669' : '1.5px solid #e2e8f0',
+                  backgroundColor: deliverySlot === 'evening' ? '#f0fdf4' : '#ffffff',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <Clock size={16} color="#475569" />
+                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Evening Slot</strong>
+                </div>
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block' }}>5:00 PM – 7:00 PM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeliverySlot('tomorrow')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '16px',
+                  border: deliverySlot === 'tomorrow' ? '2px solid #059669' : '1.5px solid #e2e8f0',
+                  backgroundColor: deliverySlot === 'tomorrow' ? '#f0fdf4' : '#ffffff',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <Truck size={16} color="#475569" />
+                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Tomorrow Morning</strong>
+                </div>
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block' }}>7:00 AM – 9:00 AM</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Section 3: Payment Method */}
+          <div className="vs-card" style={{ padding: '24px', borderRadius: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+              <div style={{ backgroundColor: '#fdf2f8', padding: '8px', borderRadius: '12px', color: '#db2777' }}>
                 <Wallet size={20} />
               </div>
               <div>
-                <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>2. Payment Method</h3>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Fast, zero-fee payment options</span>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, color: '#0f172a' }}>Choose Payment Method</h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>100% Encrypted & NPCI Bharat UPI Guaranteed</span>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
               {/* UPI Instant Gateway Option (Primary) */}
               <label style={{
                 padding: '18px 20px',
@@ -326,7 +397,7 @@ export const CheckoutView = () => {
                         UPI Instant Payment (QR / GPay / PhonePe / Paytm)
                       </strong>
                       <span style={{ display: 'block', fontSize: '12px', color: '#059669', fontWeight: '700', marginTop: '1px' }}>
-                        ⚡ 0% Transaction Fee • Dynamic QR & 1-Tap App Payment
+                        ⚡ 0% Transaction Fee • Dynamic QR & 1-Tap App Payment (Stripe Powered)
                       </span>
                     </div>
                   </div>
@@ -355,6 +426,176 @@ export const CheckoutView = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
                       <QrCode size={16} color="#059669" />
                       <span>Clicking below opens the <strong>Live Dynamic QR Code & UPI Apps Modal</strong> to scan & pay instantly.</span>
+                    </div>
+                  </div>
+                )}
+              </label>
+
+              {/* Stripe Credit / Debit Card Option */}
+              <label style={{
+                padding: '18px 20px',
+                borderRadius: '20px',
+                border: paymentMethod === 'Card' ? '2.5px solid #635bff' : '1.5px solid #e2e8f0',
+                backgroundColor: paymentMethod === 'Card' ? '#f8f9ff' : '#ffffff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: paymentMethod === 'Card' ? '0 6px 20px -4px rgba(99, 91, 255, 0.18)' : 'none'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="Card"
+                      checked={paymentMethod === 'Card'}
+                      onChange={() => setPaymentMethod('Card')}
+                      style={{ accentColor: '#635bff', width: '18px', height: '18px' }}
+                    />
+                    <div style={{
+                      backgroundColor: '#eef2ff',
+                      padding: '10px',
+                      borderRadius: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#635bff'
+                    }}>
+                      <CreditCard size={22} />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <strong style={{ fontSize: '15.5px', color: '#0f172a', fontWeight: '900' }}>
+                          Credit / Debit / ATM Card
+                        </strong>
+                        <span className="badge" style={{ backgroundColor: '#635bff', color: '#ffffff', fontSize: '10px', fontWeight: '800' }}>
+                          Stripe Gateway
+                        </span>
+                      </div>
+                      <span style={{ display: 'block', fontSize: '12px', color: '#635bff', fontWeight: '700', marginTop: '1px' }}>
+                        🔒 256-Bit SSL Encrypted • Visa, MasterCard, RuPay & Amex
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {paymentMethod === 'Card' && (
+                  <div style={{
+                    marginLeft: '36px',
+                    padding: '16px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '16px',
+                    border: '1.5px solid #c7d2fe',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#334155' }}>Card Details (Stripe Test Gateway)</span>
+                      <button
+                        type="button"
+                        onClick={handleFillTestCard}
+                        style={{
+                          backgroundColor: '#eef2ff',
+                          color: '#635bff',
+                          border: '1px solid #c7d2fe',
+                          borderRadius: '8px',
+                          padding: '4px 10px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🧪 Fill Stripe Test Card
+                      </button>
+                    </div>
+
+                    {cardError && (
+                      <div style={{
+                        backgroundColor: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        color: '#b91c1c',
+                        borderRadius: '10px',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <AlertCircle size={15} color="#ef4444" />
+                        <span>{cardError}</span>
+                      </div>
+                    )}
+
+                    <div>
+                      <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                        Card Number
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="4242 •••• •••• 4242"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          color: '#0f172a',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                          Expiry (MM/YY)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="12/28"
+                          value={cardExp}
+                          onChange={(e) => setCardExp(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '14px',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'block', marginBottom: '4px' }}>
+                          CVC / CVV
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="•••"
+                          maxLength={4}
+                          value={cardCvc}
+                          onChange={(e) => setCardCvc(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            border: '1.5px solid #cbd5e1',
+                            fontSize: '14px',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -445,13 +686,35 @@ export const CheckoutView = () => {
 
             <button
               type="submit"
+              disabled={isProcessingCard}
               className="btn-primary"
-              style={{ width: '100%', padding: '16px', borderRadius: '16px', fontSize: '16px', letterSpacing: '0.01em' }}
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: '16px',
+                fontSize: '16px',
+                letterSpacing: '0.01em',
+                backgroundColor: paymentMethod === 'Card' ? '#635bff' : '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
             >
-              {paymentMethod === 'UPI' ? (
+              {isProcessingCard ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>Authorizing with Stripe...</span>
+                </>
+              ) : paymentMethod === 'UPI' ? (
                 <>
                   <Zap size={19} />
                   <span>PAY ₹{total} VIA INSTANT UPI</span>
+                </>
+              ) : paymentMethod === 'Card' ? (
+                <>
+                  <Lock size={18} />
+                  <span>PAY ₹{total} VIA STRIPE CARD</span>
                 </>
               ) : (
                 <>
@@ -463,7 +726,7 @@ export const CheckoutView = () => {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '11.5px', color: '#64748b', marginTop: '14px' }}>
               <ShieldCheck size={16} color="#059669" />
-              <span>100% NPCI Bharat UPI & Fresh Produce Guaranteed</span>
+              <span>100% NPCI Bharat UPI & Stripe 256-Bit SSL Protection</span>
             </div>
           </div>
         </div>
@@ -484,4 +747,3 @@ export const CheckoutView = () => {
     </div>
   );
 };
-
