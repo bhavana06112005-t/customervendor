@@ -158,7 +158,7 @@ export const AuthModal = () => {
     }
   };
 
-  // 1. Google 1-Click Popup Login Flow with Timeout & Graceful Recovery
+  // Real Google 1-Click Popup Login Flow
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
     setErrorMessage('');
@@ -166,41 +166,28 @@ export const AuthModal = () => {
     playPopSound();
 
     try {
-      let gUser = null;
-      let popupSucceeded = false;
-
-      if (auth && googleProvider) {
-        try {
-          const popupPromise = signInWithPopup(auth, googleProvider);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('POPUP_TIMEOUT')), 6000)
-          );
-          const result = await Promise.race([popupPromise, timeoutPromise]);
-          if (result && result.user) {
-            gUser = result.user;
-            popupSucceeded = true;
-          }
-        } catch (popupErr) {
-          console.warn("Google popup OAuth notice:", popupErr?.message, popupErr?.code);
-          setIsSubmitting(false);
-          setViewState('gmail-input');
-          setNoticeMessage('Google popup is restricted on this browser. Enter your Gmail address below for instant verification:');
-          return;
-        }
+      if (!auth || !googleProvider) {
+        throw new Error('Firebase Auth not available');
       }
 
-      if (popupSucceeded && gUser) {
-        const gName = gUser.displayName || (gUser.email ? gUser.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Customer');
-        const gEmail = gUser.email || 'customer@gmail.com';
+      // Configure Google provider to prompt account selection every time
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      if (result && result.user) {
+        const gUser = result.user;
+        const gName = gUser.displayName || (gUser.email ? gUser.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Google User');
+        const gEmail = gUser.email || '';
         const gPhoto = gUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(gName)}&backgroundColor=059669,10b981,047857`;
-        const gUid = gUser.uid || `google_${gEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const gUid = gUser.uid;
 
         const loggedUser = {
           isLoggedIn: true,
           uid: gUid,
           name: gName,
           email: gEmail,
-          phone: phone || gUser.phoneNumber || '+91 9876543210',
+          phone: gUser.phoneNumber || phone || '+91 9876543210',
           village: village || 'Mijar',
           town: town || 'Moodbidri',
           district: district || 'Dakshina Kannada',
@@ -230,17 +217,21 @@ export const AuthModal = () => {
         setIsSubmitting(false);
         setIsAuthModalOpen(false);
         triggerCelebration();
-        showToast(`Welcome ${gName}! Signed in via Google account (${gEmail}) 🎉`, 'success');
-      } else {
-        setIsSubmitting(false);
-        setViewState('gmail-input');
-        setNoticeMessage('Enter your Gmail address below for instant Google verification:');
+        showToast(`🎉 Welcome ${gName}! Signed in via Google (${gEmail})`, 'success');
       }
-    } catch (err) {
-      console.warn("Google Auth notice:", err);
+    } catch (popupErr) {
+      console.warn("Google popup OAuth notice:", popupErr?.message, popupErr?.code);
       setIsSubmitting(false);
-      setViewState('gmail-input');
-      setNoticeMessage('Enter your Gmail address below for instant Google verification:');
+      
+      if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
+        setErrorMessage('Google Sign-In popup was closed. Please click again to sign in.');
+      } else if (popupErr.code === 'auth/popup-blocked') {
+        setErrorMessage('Google popup was blocked by browser. Please allow popups for localhost.');
+      } else if (popupErr.code === 'auth/unauthorized-domain') {
+        setErrorMessage('Domain authorization notice: please ensure localhost is added in Firebase Console.');
+      } else {
+        setErrorMessage(popupErr.message || 'Google sign-in could not complete. Please try again.');
+      }
     }
   };
 

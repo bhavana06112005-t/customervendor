@@ -27,12 +27,12 @@ import {
 
 // Read configuration from environment variables (.env), with resilient fallbacks for Vercel deployments
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAWTmVrECgfpYi31NepIxKdNDwmpZ34NRM",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "vendorsaathi.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "vendorsaathi",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "vendorsaathi.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "77605968480",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:77605968480:web:a1b2c3d4e5f6g7h8"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAXDGghDfmlTQqkWqp08i4x2zVMUqm9CcM",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "blinklean-web.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "blinklean-web",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "blinklean-web.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "291123794165",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:291123794165:web:dc2ec0842b2927252a75bc"
 };
 
 // Initialize Firebase safely with try/catch
