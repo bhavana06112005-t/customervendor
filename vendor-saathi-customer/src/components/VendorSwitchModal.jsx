@@ -1,48 +1,100 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldAlert, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ShoppingBag, X, RefreshCw, Sparkles } from 'lucide-react';
 
 export const VendorSwitchModal = () => {
-  const { isVendorSwitchModalOpen, setIsVendorSwitchModalOpen, pendingVendorConflict, clearCartAndAddVendorProduct, setIsCartDrawerOpen } = useApp();
+  const { 
+    isVendorSwitchModalOpen, 
+    setIsVendorSwitchModalOpen, 
+    pendingVendorConflict, 
+    clearCartAndAddVendorProduct,
+    showToast
+  } = useApp();
 
   if (!isVendorSwitchModalOpen || !pendingVendorConflict) return null;
 
+  const { currentVendorName, newVendorName, newProduct } = pendingVendorConflict;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 220, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="vs-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', borderRadius: '24px', backgroundColor: '#ffffff' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '10px', borderRadius: '50%' }}>
-              <ShieldAlert size={24} />
-            </div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>Single Vendor Order Limit</h3>
-          </div>
-          <button onClick={() => setIsVendorSwitchModalOpen(false)} style={{ color: '#64748b' }}><X size={20} /></button>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(15, 23, 42, 0.78)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 2000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px'
+    }}>
+      <div className="vs-card animate-modal-pop" style={{
+        width: '100%',
+        maxWidth: '460px',
+        padding: '32px 28px',
+        borderRadius: '28px',
+        backgroundColor: '#ffffff',
+        textAlign: 'center',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)',
+        border: '1.5px solid #fed7aa'
+      }}>
+        <div style={{
+          width: '64px',
+          height: '64px',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+          color: '#d97706',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px auto',
+          boxShadow: '0 6px 18px rgba(245, 158, 11, 0.3)',
+          border: '2px solid #fcd34d'
+        }}>
+          <AlertTriangle size={32} />
         </div>
 
-        <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, marginBottom: '20px' }}>
-          ⚠️ Your cart currently contains items from <strong>{pendingVendorConflict.currentVendorName}</strong>.
-          <br /><br />
-          VendorSaathi enforces <strong>one vendor per order</strong> to ensure fast local village fulfillment. Would you like to clear cart and start order with <strong>{pendingVendorConflict.newVendorName}</strong>?
+        <h3 style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '8px' }}>
+          Single Store Cart
+        </h3>
+
+        <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.5, marginBottom: '20px' }}>
+          Your cart currently contains items from <strong style={{ color: '#0f172a' }}>{currentVendorName}</strong>. 
+          To ensure 20-min express rural delivery, orders are fulfilled by one store at a time.
         </p>
+
+        <div style={{
+          backgroundColor: '#fffbeb',
+          border: '1.5px solid #fde68a',
+          padding: '14px',
+          borderRadius: '16px',
+          fontSize: '13px',
+          color: '#334155',
+          marginBottom: '24px',
+          textAlign: 'left'
+        }}>
+          <strong style={{ color: '#0f172a' }}>New Item to add:</strong> {newProduct.name} (₹{newProduct.price}/{newProduct.unit})<br />
+          <strong style={{ color: '#b45309' }}>From Store:</strong> {newVendorName}
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button
             onClick={clearCartAndAddVendorProduct}
-            className="btn-primary"
-            style={{ width: '100%', padding: '12px', borderRadius: '12px', fontSize: '13px' }}
+            className="btn-amber"
+            style={{ width: '100%', padding: '13px', borderRadius: '14px', fontSize: '14px', fontWeight: '800' }}
           >
-            Clear Cart & Add from {pendingVendorConflict.newVendorName}
+            <RefreshCw size={17} />
+            <span>Clear Cart & Switch to {newVendorName}</span>
           </button>
+
           <button
             onClick={() => {
               setIsVendorSwitchModalOpen(false);
-              setIsCartDrawerOpen(true);
+              showToast('Kept current store items', 'info');
             }}
             className="btn-secondary"
-            style={{ width: '100%', padding: '10px', borderRadius: '12px', fontSize: '13px' }}
+            style={{ width: '100%', padding: '13px', borderRadius: '14px', fontSize: '14px', fontWeight: '700' }}
           >
-            View Current Cart
+            Keep Current Cart ({currentVendorName})
           </button>
         </div>
       </div>

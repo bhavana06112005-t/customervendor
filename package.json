@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev --prefix vendor-saathi-customer",
-    "build": "npm run build --prefix vendor-saathi-customer",
-    "preview": "npm run preview --prefix vendor-saathi-customer",
+    "dev": "vite --host --port 5173",
+    "build": "vite build",
+    "preview": "vite preview",
     "lint": "oxlint"
   },
   "dependencies": {

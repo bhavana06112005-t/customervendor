@@ -1,22 +1,22 @@
 import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
-import { AuthProvider } from './context/AuthContext';
 import { VendorSyncProvider } from './context/VendorSyncContext';
-import { Header } from './components/Header';
+import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { BottomNav } from './components/BottomNav';
 
 import { LocationModal } from './components/LocationModal';
 import { AuthModal } from './components/AuthModal';
 import { CartDrawer } from './components/CartDrawer';
-import { VendorSimulatorDrawer } from './components/VendorSimulatorDrawer';
 import { ReviewModal } from './components/ReviewModal';
 import { VendorSwitchModal } from './components/VendorSwitchModal';
 import { VoiceSearchModal } from './components/VoiceSearchModal';
+import { VoiceAssistanceModal } from './components/VoiceAssistanceModal';
 import { VendorChatModal } from './components/VendorChatModal';
 import { NotificationToast } from './components/NotificationToast';
+import { InstallPwaBanner } from './components/InstallPwaBanner';
 
-import { Home } from './pages/Home';
+import { HomeView } from './views/HomeView';
 import { CategoriesView } from './views/CategoriesView';
 import { ProductListingView } from './views/ProductListingView';
 import { ProductDetailView } from './views/ProductDetailView';
@@ -40,11 +40,16 @@ import { VendorChatView } from './views/VendorChatView';
 const MainContent = () => {
   const { currentView } = useApp();
 
+  // Scroll to top on page navigation
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentView]);
+
   const renderView = () => {
     switch (currentView) {
       case 'home':
       case 'landing':
-        return <Home />;
+        return <HomeView />;
       case 'categories':
         return <CategoriesView />;
       case 'nearby-vendors':
@@ -84,13 +89,13 @@ const MainContent = () => {
       case 'vendor-chat':
         return <VendorChatView />;
       default:
-        return <Home />;
+        return <HomeView />;
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingBottom: '60px' }}>
-      <Header />
+      <Navbar />
       <main style={{ flex: 1 }}>
         {renderView()}
       </main>
@@ -101,24 +106,23 @@ const MainContent = () => {
       <LocationModal />
       <AuthModal />
       <CartDrawer />
-      <VendorSimulatorDrawer />
       <ReviewModal />
       <VendorSwitchModal />
       <VoiceSearchModal />
+      <VoiceAssistanceModal />
       <VendorChatModal />
       <NotificationToast />
+      <InstallPwaBanner />
     </div>
   );
 };
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <VendorSyncProvider>
-          <MainContent />
-        </VendorSyncProvider>
-      </AppProvider>
-    </AuthProvider>
+    <AppProvider>
+      <VendorSyncProvider>
+        <MainContent />
+      </VendorSyncProvider>
+    </AppProvider>
   );
 }
