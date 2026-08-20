@@ -4,18 +4,20 @@ import { MessageSquare, Send, X, Store, Phone, CheckCheck, Mic, Flame } from 'lu
 import { sendChatMessageToFirebase } from '../firebase';
 
 export const VendorChatModal = () => {
-  const { isVendorChatOpen, setIsVendorChatOpen, activeOrderId, orders } = useApp();
+  const { isVendorChatOpen, setIsVendorChatOpen, activeOrderId, orders, selectedVendor, user } = useApp();
   const [messages, setMessages] = useState([
-    { sender: 'vendor', text: 'Namaste Bhavana! Ramesh here from Ramesh Grocery. Your order #VS10245 is packed with fresh farm produce.', time: '10:36 AM' },
-    { sender: 'customer', text: 'Hi Ramesh Gowda, please make sure the tomatoes are ripe and crisp.', time: '10:38 AM' },
-    { sender: 'vendor', text: 'Yes! Handpicked 2 kg fresh harvest tomatoes from Moodbidri farms. Delivery rider has left the store.', time: '10:40 AM' }
+    { sender: 'vendor', text: `Namaste! Ramesh here from Ramesh Grocery. Fresh farm produce is ready for your doorstep.`, time: '10:36 AM' },
+    { sender: 'customer', text: 'Hi Ramesh Gowda, please make sure the produce is fresh and crisp.', time: '10:38 AM' },
+    { sender: 'vendor', text: 'Yes! Handpicked from local Moodbidri farms. Ready for express delivery.', time: '10:40 AM' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
   if (!isVendorChatOpen) return null;
 
-  const currentOrder = orders.find(o => o.id === activeOrderId) || orders[0];
+  const currentOrder = (orders || []).find(o => o.id === activeOrderId) || (orders && orders[0]) || null;
+  const vendorName = currentOrder?.vendorName || selectedVendor?.name || 'Ramesh Grocery';
+  const vendorId = currentOrder?.vendorId || selectedVendor?.id || 'v1';
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -28,14 +30,13 @@ export const VendorChatModal = () => {
     setInput('');
     setIsTyping(true);
 
-    const vendorId = currentOrder?.vendorId || 'v1';
-
     // Sync to Firestore
     sendChatMessageToFirebase(vendorId, newMsg);
 
     setTimeout(() => {
       setIsTyping(false);
-      const vendorReply = { sender: 'vendor', text: `Got it Bhavana! I have informed our delivery rider. Arriving in ~15 mins.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      const customerName = user?.name ? user.name.split(' ')[0] : 'there';
+      const vendorReply = { sender: 'vendor', text: `Got it ${customerName}! I have informed our delivery team. Arriving soon.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setMessages(prev => [...prev, vendorReply]);
       // Sync vendor reply to Firestore
       sendChatMessageToFirebase(vendorId, vendorReply);
@@ -94,7 +95,7 @@ export const VendorChatModal = () => {
             </div>
             <div>
               <strong style={{ fontSize: '15.5px', display: 'block', lineHeight: 1.2, fontWeight: '800' }}>
-                {currentOrder.vendorName}
+                {vendorName}
               </strong>
               <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontWeight: '600' }}>
                 🟢 Online • Direct Kirana Chat

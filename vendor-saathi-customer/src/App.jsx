@@ -13,6 +13,7 @@ import { VendorSwitchModal } from './components/VendorSwitchModal';
 import { VoiceSearchModal } from './components/VoiceSearchModal';
 import { VoiceAssistanceModal } from './components/VoiceAssistanceModal';
 import { VendorChatModal } from './components/VendorChatModal';
+import { VendorSimulatorDrawer } from './components/VendorSimulatorDrawer';
 import { NotificationToast } from './components/NotificationToast';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 
@@ -111,6 +112,7 @@ const MainContent = () => {
       <VoiceSearchModal />
       <VoiceAssistanceModal />
       <VendorChatModal />
+      <VendorSimulatorDrawer />
       <NotificationToast />
       <InstallPwaBanner />
     </div>

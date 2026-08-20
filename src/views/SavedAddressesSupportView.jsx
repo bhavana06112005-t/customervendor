@@ -17,22 +17,25 @@ import {
 import { saveUserProfileToFirebase } from '../firebase';
 
 export const SavedAddressesSupportView = () => {
-  const { user, setUser, navigateTo, showToast, setIsVendorChatOpen } = useApp();
+  const { user, updateUserProfile, navigateTo, showToast, setIsVendorChatOpen } = useApp();
   const [selectedAddrId, setSelectedAddrId] = useState('addr1');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTag, setNewTag] = useState('Home');
   const [newAddressText, setNewAddressText] = useState('');
   const [isNewDefault, setIsNewDefault] = useState(false);
 
+  const userAddresses = user?.addresses || [
+    { id: 'addr1', tag: 'Home', address: user?.address || 'Mijar Village, Moodbidri, Karnataka - 574225', isDefault: true }
+  ];
+
   const handleDeleteAddress = (id) => {
-    if (user.addresses.length <= 1) {
+    if (userAddresses.length <= 1) {
       showToast('Cannot delete primary default address', 'danger');
       return;
     }
-    const updatedAddresses = user.addresses.filter(a => a.id !== id);
+    const updatedAddresses = userAddresses.filter(a => a.id !== id);
     const updatedUser = { ...user, addresses: updatedAddresses };
-    setUser(updatedUser);
-    saveUserProfileToFirebase(user.id || 'default_user', updatedUser);
+    updateUserProfile(updatedUser);
     showToast('Address removed from saved list');
   };
 
@@ -48,10 +51,10 @@ export const SavedAddressesSupportView = () => {
       id: newId,
       tag: newTag,
       address: newAddressText.trim(),
-      isDefault: isNewDefault || user.addresses.length === 0
+      isDefault: isNewDefault || userAddresses.length === 0
     };
 
-    let updatedAddresses = [...user.addresses];
+    let updatedAddresses = [...userAddresses];
     if (newAddressObj.isDefault) {
       updatedAddresses = updatedAddresses.map(a => ({ ...a, isDefault: false }));
     }
@@ -63,8 +66,7 @@ export const SavedAddressesSupportView = () => {
       addresses: updatedAddresses
     };
 
-    setUser(updatedUser);
-    saveUserProfileToFirebase(user.id || 'default_user', updatedUser);
+    updateUserProfile(updatedUser);
     setSelectedAddrId(newId);
     setNewAddressText('');
     setIsAddModalOpen(false);
@@ -118,7 +120,7 @@ export const SavedAddressesSupportView = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {user.addresses.map(addr => (
+            {userAddresses.map(addr => (
               <div
                 key={addr.id}
                 onClick={() => setSelectedAddrId(addr.id)}
