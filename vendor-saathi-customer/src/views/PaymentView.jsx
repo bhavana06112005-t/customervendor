@@ -6,7 +6,7 @@ import { UpiPaymentModal } from '../components/UpiPaymentModal';
 export const PaymentView = () => {
   const { cart, user, placeOrder, navigateTo } = useApp();
   const [method, setMethod] = useState('UPI');
-  const [upiId, setUpiId] = useState('bhavana@okhdfcbank');
+  const [upiId, setUpiId] = useState(user?.email ? `${user.email.split('@')[0]}@okaxis` : 'customer@okhdfcbank');
   const [isUpiModalOpen, setIsUpiModalOpen] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);

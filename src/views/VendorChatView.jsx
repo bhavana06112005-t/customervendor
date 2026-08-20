@@ -4,13 +4,13 @@ import { VENDORS } from '../data/vendors';
 import { Send, Phone, ArrowLeft, CheckCheck, Paperclip, Store, Sparkles, Mic } from 'lucide-react';
 
 export const VendorChatView = () => {
-  const { navigateTo, selectedVendor, vendors } = useApp();
+  const { navigateTo, selectedVendor, vendors, orders } = useApp();
   const vendor = selectedVendor || (vendors && vendors[0]) || VENDORS[0];
 
   const [messages, setMessages] = useState([
     { sender: 'customer', text: 'Hello Ramesh Gowda, is fresh tomato available today?', time: '10:20 AM' },
-    { sender: 'vendor', text: 'Namaste Bhavana! Yes, 24 kg farm-fresh tomatoes just arrived from Belvai farms.', time: '10:21 AM' },
-    { sender: 'customer', text: 'Great! Please add 2 kg ripe tomatoes to my order.', time: '10:22 AM' },
+    { sender: 'vendor', text: 'Namaste! Yes, farm-fresh tomatoes just arrived from local Belvai farms.', time: '10:21 AM' },
+    { sender: 'customer', text: 'Great! Please add ripe tomatoes to my order.', time: '10:22 AM' },
     { sender: 'vendor', text: 'Sure! Handpicked and packed. Delivery rider is starting now.', time: '10:22 AM' },
     { sender: 'customer', text: 'Thank you so much 😊', time: '10:23 AM' }
   ]);
@@ -30,7 +30,7 @@ export const VendorChatView = () => {
 
     setTimeout(() => {
       setIsTyping(false);
-      let reply = "Yes Bhavana! Fresh potatoes are ₹30/kg. Delivery will take 20-30 mins.";
+      let reply = "Yes! Fresh produce is available. Delivery will take 20-30 mins.";
       if (userText.toLowerCase().includes('offer') || userText.toLowerCase().includes('discount')) {
         reply = "Special offer today: Get 10% OFF on all vegetables using code FRESH10!";
       }
@@ -42,10 +42,12 @@ export const VendorChatView = () => {
     setInput(chipText);
   };
 
+  const hasOrders = orders && orders.length > 0;
+
   return (
     <div className="container animate-fade-in" style={{ padding: '24px 0 60px 0', width: '100%' }}>
       <button 
-        onClick={() => navigateTo('order-tracking')}
+        onClick={() => hasOrders ? navigateTo('order-tracking') : navigateTo('nearby-vendors')}
         style={{ 
           fontSize: '13.5px', 
           color: '#059669', 
@@ -57,10 +59,11 @@ export const VendorChatView = () => {
           backgroundColor: '#ecfdf5',
           padding: '6px 14px',
           borderRadius: '12px',
-          border: '1px solid #a7f3d0'
+          border: '1px solid #a7f3d0',
+          cursor: 'pointer'
         }}
       >
-        <ArrowLeft size={16} /> Back to Live Order Tracking
+        <ArrowLeft size={16} /> {hasOrders ? 'Back to Live Order Tracking' : 'Back to Nearby Stores'}
       </button>
 
       {/* Main Chat Screen Card */}

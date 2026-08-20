@@ -12,28 +12,63 @@ const NOTIFICATIONS_FULL = [
 ];
 
 export const NotificationsView = () => {
-  const { navigateTo } = useApp();
+  const { navigateTo, notifications, setNotifications, showToast } = useApp();
+
+  const handleMarkAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    showToast('All notifications marked as read! ✓');
+  };
+
+  const activeNotifs = (notifications && notifications.length > 0) ? notifications.map(n => ({
+    id: n.id,
+    title: n.title,
+    desc: n.body || '',
+    time: n.time || 'Just now',
+    type: n.title?.toLowerCase().includes('offer') ? 'promo' : 'info',
+    icon: n.title?.toLowerCase().includes('offer') ? Tag : n.title?.toLowerCase().includes('delivered') ? CheckCircle2 : Truck,
+    bg: n.title?.toLowerCase().includes('offer') ? '#f3e8ff' : '#ecfdf5',
+    color: n.title?.toLowerCase().includes('offer') ? '#7e22ce' : '#059669',
+    unread: !n.read
+  })) : NOTIFICATIONS_FULL;
 
   return (
     <div className="container animate-fade-in" style={{ padding: '32px 0 60px 0', width: '100%' }}>
-      <button 
-        onClick={() => navigateTo('profile')}
-        style={{ 
-          fontSize: '13.5px', 
-          color: '#059669', 
-          fontWeight: '800', 
-          display: 'inline-flex', 
-          alignItems: 'center', 
-          gap: '6px', 
-          marginBottom: '20px',
-          backgroundColor: '#ecfdf5',
-          padding: '6px 14px',
-          borderRadius: '12px',
-          border: '1px solid #a7f3d0'
-        }}
-      >
-        <ArrowLeft size={16} /> Back to Profile
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <button 
+          onClick={() => navigateTo('profile')}
+          style={{ 
+            fontSize: '13.5px', 
+            color: '#059669', 
+            fontWeight: '800', 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px', 
+            backgroundColor: '#ecfdf5',
+            padding: '6px 14px',
+            borderRadius: '12px',
+            border: '1px solid #a7f3d0',
+            cursor: 'pointer'
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Profile
+        </button>
+
+        <button
+          onClick={handleMarkAllRead}
+          style={{
+            fontSize: '12.5px',
+            color: '#047857',
+            backgroundColor: '#ffffff',
+            border: '1px solid #a7f3d0',
+            padding: '6px 14px',
+            borderRadius: '12px',
+            fontWeight: '700',
+            cursor: 'pointer'
+          }}
+        >
+          ✓ Mark all as read
+        </button>
+      </div>
 
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '30px', fontWeight: '900', color: '#0f172a', letterSpacing: '-0.02em' }}>
@@ -45,7 +80,7 @@ export const NotificationsView = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
-        {NOTIFICATIONS_FULL.map(n => {
+        {activeNotifs.map(n => {
           const Icon = n.icon;
           const handleNotifClick = () => {
             if (n.type === 'promo') navigateTo('offers');

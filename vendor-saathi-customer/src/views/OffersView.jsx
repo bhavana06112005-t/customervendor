@@ -41,6 +41,8 @@ export const OffersView = () => {
         });
       } catch (e) {}
       showToast('🎉 You revealed a SECRET 20% OFF coupon: VILLAGE20 !');
+    } else {
+      handleApplyCoupon('VILLAGE20');
     }
   };
 
