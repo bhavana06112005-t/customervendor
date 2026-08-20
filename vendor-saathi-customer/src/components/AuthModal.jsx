@@ -226,9 +226,10 @@ export const AuthModal = () => {
       if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
         setErrorMessage('Google Sign-In popup was closed. Please click again to sign in.');
       } else if (popupErr.code === 'auth/popup-blocked') {
-        setErrorMessage('Google popup was blocked by browser. Please allow popups for localhost.');
+        setErrorMessage('Google popup was blocked by your browser. Please allow popups for this site.');
       } else if (popupErr.code === 'auth/unauthorized-domain') {
-        setErrorMessage('Domain authorization notice: please ensure localhost is added in Firebase Console.');
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'customervendor.vercel.app';
+        setErrorMessage(`To enable Google 1-Click popup on ${host}, add "${host}" to Firebase Console > Authentication > Settings > Authorized domains.`);
       } else {
         setErrorMessage(popupErr.message || 'Google sign-in could not complete. Please try again.');
       }
@@ -513,9 +514,31 @@ export const AuthModal = () => {
             fontSize: '12.5px',
             fontWeight: '600',
             marginBottom: '16px',
-            textAlign: 'center'
+            textAlign: 'center',
+            lineHeight: 1.4
           }}>
-            {errorMessage}
+            <div>{errorMessage}</div>
+            {errorMessage.includes('Authorized domains') && (
+              <div style={{ marginTop: '8px' }}>
+                <a
+                  href="https://console.firebase.google.com/project/blinklean-web/authentication/settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    fontWeight: '800',
+                    fontSize: '11.5px',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  🔗 Open Firebase Console to Add Domain →
+                </a>
+              </div>
+            )}
           </div>
         )}
 
