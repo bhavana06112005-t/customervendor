@@ -114,9 +114,11 @@ export const ProfileView = () => {
 
     const updatedUser = {
       ...user,
+      isRegistered: true,
       name: editName.trim(),
       email: editEmail.trim(),
       phone: editPhone.trim().startsWith('+91') ? editPhone.trim() : `+91 ${editPhone.trim()}`,
+      streetAddress: editAddress.trim(),
       village: editVillage.trim(),
       town: editTown.trim(),
       district: editDistrict.trim(),

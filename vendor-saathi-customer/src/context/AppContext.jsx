@@ -248,14 +248,36 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
-  // Sync user state to localStorage
+  // Sync user state to localStorage and registry by email
   const updateUserProfile = (newUserData) => {
     setUser(prev => {
       const merged = { ...prev, ...newUserData };
       localStorage.setItem('vendorsaathi_current_user', JSON.stringify(merged));
+      
+      if (merged.email) {
+        const cleanEmail = merged.email.trim().toLowerCase();
+        localStorage.setItem(`vendorsaathi_user_db_${cleanEmail}`, JSON.stringify(merged));
+      }
+      
       if (merged.uid) {
         saveUserProfileToFirebase(merged.uid, merged);
       }
+
+      // Automatically sync active app GPS location with user's registered GPS
+      if (merged.gpsLocation && merged.gpsLocation.lat && merged.gpsLocation.lng) {
+        setCurrentLocation({
+          name: `${merged.village || merged.gpsLocation.village || 'Mijar'}, ${merged.town || merged.gpsLocation.town || 'Moodbidri'}`,
+          village: merged.village || merged.gpsLocation.village || 'Mijar',
+          town: merged.town || merged.gpsLocation.town || 'Moodbidri',
+          district: merged.district || merged.gpsLocation.district || 'Dakshina Kannada',
+          pincode: merged.pincode || merged.gpsLocation.pincode || '574225',
+          lat: merged.gpsLocation.lat,
+          lng: merged.gpsLocation.lng,
+          accuracy: merged.gpsLocation.accuracy || 10,
+          source: 'REGISTERED_USER_GPS'
+        });
+      }
+
       return merged;
     });
   };

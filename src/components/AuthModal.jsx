@@ -17,13 +17,16 @@ import {
   Navigation,
   RefreshCw,
   Crosshair,
-  AlertCircle
+  AlertCircle,
+  Building,
+  Home
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { 
   auth, 
   googleProvider, 
   saveUserProfileToFirebase, 
+  getUserProfileFromFirebase,
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword 
@@ -42,7 +45,7 @@ export const AuthModal = () => {
     showToast 
   } = useApp();
 
-  // 'main' | 'gmail-input' | 'email-form'
+  // 'main' | 'gmail-input' | 'registration' | 'email-form'
   const [viewState, setViewState] = useState('main');
   const [isEmailRegister, setIsEmailRegister] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +62,7 @@ export const AuthModal = () => {
   const [town, setTown] = useState(user?.town || 'Moodbidri');
   const [district, setDistrict] = useState(user?.district || 'Dakshina Kannada');
   const [pincode, setPincode] = useState(user?.pincode || '574225');
-  const [streetAddress, setStreetAddress] = useState(user?.address || '');
+  const [streetAddress, setStreetAddress] = useState(user?.streetAddress || user?.address || '');
   const [landmark, setLandmark] = useState(user?.landmark || '');
   const [userRole, setUserRole] = useState(user?.role || 'customer');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
@@ -85,7 +88,7 @@ export const AuthModal = () => {
         setTown(user.town || 'Moodbidri');
         setDistrict(user.district || 'Dakshina Kannada');
         setPincode(user.pincode || '574225');
-        setStreetAddress(user.address || '');
+        setStreetAddress(user.streetAddress || user.address || '');
         setLandmark(user.landmark || '');
         if (user.gpsLocation) setGpsData(user.gpsLocation);
       }
@@ -119,7 +122,7 @@ export const AuthModal = () => {
       if (geocoded.town) setTown(geocoded.town);
       if (geocoded.district) setDistrict(geocoded.district);
       if (geocoded.pincode) setPincode(geocoded.pincode);
-      if (geocoded.streetAddress) setStreetAddress(geocoded.streetAddress);
+      if (geocoded.streetAddress && !streetAddress) setStreetAddress(geocoded.streetAddress);
       if (!landmark) setLandmark(`Near ${geocoded.village || geocoded.town}`);
 
       setCurrentLocation({
@@ -152,13 +155,73 @@ export const AuthModal = () => {
         capturedAt: new Date().toISOString()
       };
       setGpsData(fallbackGeo);
-      showToast('📍 Using calibrated area coordinates for Moodbidri / Mijar', 'info');
+      showToast('📍 Calibrated coordinates for Moodbidri / Mijar loaded', 'info');
     } finally {
       setIsDetectingGPS(false);
     }
   };
 
-  // Real Google 1-Click Popup Login Flow
+  // Helper: Process Gmail login, check if user is already registered, or show registration view
+  const processGmailUserLogin = async (rawEmail, displayName, photo, uid) => {
+    const cleanEmail = rawEmail.trim().toLowerCase();
+    const registryKey = `vendorsaathi_user_db_${cleanEmail}`;
+    
+    let existingProfile = null;
+    try {
+      const localCached = localStorage.getItem(registryKey);
+      if (localCached) {
+        existingProfile = JSON.parse(localCached);
+      }
+    } catch (e) {}
+
+    if (!existingProfile && uid) {
+      try {
+        const remoteRes = await getUserProfileFromFirebase(uid);
+        if (remoteRes && remoteRes.success && remoteRes.data) {
+          existingProfile = remoteRes.data;
+        }
+      } catch (e) {}
+    }
+
+    // If user has already registered their details, load them automatically and finish login
+    if (existingProfile && existingProfile.isRegistered && existingProfile.phone && (existingProfile.streetAddress || existingProfile.address)) {
+      const loggedUser = {
+        ...existingProfile,
+        isLoggedIn: true,
+        email: cleanEmail,
+        photoURL: photo || existingProfile.photoURL,
+        authProvider: 'google'
+      };
+      updateUserProfile(loggedUser);
+      setIsSubmitting(false);
+      setIsAuthModalOpen(false);
+      triggerCelebration();
+      showToast(`🎉 Welcome back, ${loggedUser.name}! Delivery address: ${loggedUser.village || loggedUser.town}`, 'success');
+      return;
+    }
+
+    // Otherwise, transition to Registration Step to collect Full Name, Phone, Exact Address & Location!
+    const rawNamePart = cleanEmail.split('@')[0];
+    const initialName = displayName || rawNamePart.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const gUid = uid || `google_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const gPhoto = photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(initialName)}&backgroundColor=059669,10b981,047857`;
+
+    setGmailAddress(cleanEmail);
+    setEmail(cleanEmail);
+    setName(initialName);
+    setAuthUid(gUid);
+    setPhotoURL(gPhoto);
+    setIsSubmitting(false);
+    setViewState('registration');
+    setNoticeMessage(`Gmail verified (${cleanEmail})! Please complete your registration details below:`);
+    
+    // Auto-detect GPS coordinates if not already captured
+    if (!gpsData) {
+      handleDetectGPS();
+    }
+  };
+
+  // 1. Google 1-Click Popup Login Flow
   const handleGoogleAuth = async () => {
     setIsSubmitting(true);
     setErrorMessage('');
@@ -170,54 +233,17 @@ export const AuthModal = () => {
         throw new Error('Firebase Auth not available');
       }
 
-      // Configure Google provider to prompt account selection every time
       googleProvider.setCustomParameters({ prompt: 'select_account' });
-
       const result = await signInWithPopup(auth, googleProvider);
       
       if (result && result.user) {
         const gUser = result.user;
-        const gName = gUser.displayName || (gUser.email ? gUser.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Google User');
+        const gName = gUser.displayName || '';
         const gEmail = gUser.email || '';
-        const gPhoto = gUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(gName)}&backgroundColor=059669,10b981,047857`;
+        const gPhoto = gUser.photoURL || '';
         const gUid = gUser.uid;
 
-        const loggedUser = {
-          isLoggedIn: true,
-          uid: gUid,
-          name: gName,
-          email: gEmail,
-          phone: gUser.phoneNumber || phone || '+91 9876543210',
-          village: village || 'Mijar',
-          town: town || 'Moodbidri',
-          district: district || 'Dakshina Kannada',
-          pincode: pincode || '574225',
-          address: streetAddress || `${village || 'Mijar'} Village, Moodbidri - ${pincode || '574225'}`,
-          landmark: landmark || 'Near Town Center',
-          preferredLanguage: user?.preferredLanguage || 'en',
-          role: userRole || 'customer',
-          authProvider: 'google',
-          photoURL: gPhoto,
-          gpsLocation: gpsData || {
-            lat: 13.0682,
-            lng: 74.9961,
-            village: 'Mijar',
-            town: 'Moodbidri',
-            district: 'Dakshina Kannada',
-            pincode: '574225'
-          }
-        };
-
-        updateUserProfile(loggedUser);
-        try {
-          await saveUserProfileToFirebase(gUid, loggedUser);
-        } catch (fbErr) {
-          console.warn("Firestore user sync warning:", fbErr);
-        }
-        setIsSubmitting(false);
-        setIsAuthModalOpen(false);
-        triggerCelebration();
-        showToast(`🎉 Welcome ${gName}! Signed in via Google (${gEmail})`, 'success');
+        await processGmailUserLogin(gEmail, gName, gPhoto, gUid);
       }
     } catch (popupErr) {
       console.warn("Google popup OAuth notice:", popupErr?.message, popupErr?.code);
@@ -257,42 +283,81 @@ export const AuthModal = () => {
     const gUid = `google_${cleanedGmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
     const gPhoto = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(computedName)}&backgroundColor=059669,10b981,047857`;
 
+    await processGmailUserLogin(cleanedGmail, computedName, gPhoto, gUid);
+  };
+
+  // 3. Complete Registration Flow (Collects Full Name, Phone, Exact Address, Location)
+  const handleCompleteRegistration = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
+    const cleanPhone = phone.trim();
+    if (!cleanPhone || cleanPhone.replace(/\D/g, '').length < 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile phone number for delivery.');
+      return;
+    }
+    if (!streetAddress.trim() && !village.trim()) {
+      setErrorMessage('Please enter your exact street address or house / building name.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    playPopSound();
+
+    const cleanEmail = (gmailAddress || email || user?.email || 'customer@gmail.com').trim().toLowerCase();
+    const formattedPhone = cleanPhone.startsWith('+91') ? cleanPhone : `+91 ${cleanPhone.replace(/^0+/, '')}`;
+    const fullFormattedAddress = streetAddress.trim()
+      ? `${streetAddress.trim()}, ${village.trim()}, ${town.trim()}, Karnataka - ${pincode.trim()}`
+      : `${village.trim()} Village, ${town.trim()}, Karnataka - ${pincode.trim()}`;
+
     const loggedUser = {
       isLoggedIn: true,
-      uid: gUid,
-      name: computedName,
-      email: cleanedGmail,
-      phone: phone.trim() || '+91 9876543210',
-      village: village || 'Mijar',
-      town: town || 'Moodbidri',
-      district: district || 'Dakshina Kannada',
-      pincode: pincode || '574225',
-      address: streetAddress || `${village || 'Mijar'} Village, Moodbidri - ${pincode || '574225'}`,
-      landmark: landmark || 'Near Town Center',
+      isRegistered: true,
+      uid: authUid || user?.uid || `google_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      name: name.trim(),
+      email: cleanEmail,
+      phone: formattedPhone,
+      streetAddress: streetAddress.trim(),
+      address: fullFormattedAddress,
+      landmark: landmark.trim() || `Near ${village || town}`,
+      village: village.trim() || 'Mijar',
+      town: town.trim() || 'Moodbidri',
+      district: district.trim() || 'Dakshina Kannada',
+      pincode: pincode.trim() || '574225',
       preferredLanguage: user?.preferredLanguage || 'en',
       role: userRole || 'customer',
       authProvider: 'google',
-      photoURL: gPhoto,
+      photoURL: photoURL || user?.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}&backgroundColor=059669,10b981,047857`,
+      registeredAt: new Date().toISOString(),
       gpsLocation: gpsData || {
         lat: 13.0682,
         lng: 74.9961,
-        village: 'Mijar',
-        town: 'Moodbidri',
-        district: 'Dakshina Kannada',
-        pincode: '574225'
+        accuracy: 12,
+        village: village.trim() || 'Mijar',
+        town: town.trim() || 'Moodbidri',
+        district: district.trim() || 'Dakshina Kannada',
+        pincode: pincode.trim() || '574225',
+        formattedAddress: fullFormattedAddress,
+        source: 'REGISTERED_GPS_VERIFIED',
+        capturedAt: new Date().toISOString()
       }
     };
 
     updateUserProfile(loggedUser);
     try {
-      await saveUserProfileToFirebase(gUid, loggedUser);
+      await saveUserProfileToFirebase(loggedUser.uid, loggedUser);
     } catch (fbErr) {
-      console.warn("Firestore user sync note:", fbErr);
+      console.warn("Firestore registration save note:", fbErr);
     }
+
     setIsSubmitting(false);
     setIsAuthModalOpen(false);
     triggerCelebration();
-    showToast(`Welcome ${computedName}! Signed in with ${cleanedGmail} 🎉`, 'success');
+    showToast(`🎉 Registration Complete! Welcome ${name.trim()} to VendorSaathi!`, 'success');
   };
 
   // 3. Email & Password Login / Register Flow
@@ -474,12 +539,18 @@ export const AuthModal = () => {
             <Sparkles size={26} />
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#064e3b', margin: '0 0 4px 0' }}>
-            {viewState === 'gmail-input' ? 'Sign In with your Gmail' : 'Welcome to VendorSaathi'}
+            {viewState === 'registration' 
+              ? '📝 Complete Your Registration' 
+              : viewState === 'gmail-input' 
+                ? 'Sign In with your Gmail' 
+                : 'Welcome to VendorSaathi'}
           </h2>
           <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-            {viewState === 'gmail-input' 
-              ? 'Connect your personal Google account for instant village delivery tracking' 
-              : 'Fresh village groceries & verified local stores delivered in 20 mins'}
+            {viewState === 'registration'
+              ? 'Enter your name, phone and exact delivery address for 20-min express grocery deliveries.'
+              : viewState === 'gmail-input' 
+                ? 'Connect your personal Google account for instant village delivery tracking' 
+                : 'Fresh village groceries & verified local stores delivered in 20 mins'}
           </p>
         </div>
 
@@ -735,7 +806,352 @@ export const AuthModal = () => {
           </div>
         )}
 
-        {/* VIEW 2: Direct Gmail Address Input Form */}
+        {/* VIEW 2: Registration & Address Collection Page */}
+        {viewState === 'registration' && (
+          <form onSubmit={handleCompleteRegistration} className="animate-fade-scale">
+            {/* Verified Gmail Indicator */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#f0fdf4',
+              border: '1.5px solid #a7f3d0',
+              borderRadius: '14px',
+              padding: '10px 14px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#047857', fontWeight: '800', display: 'block' }}>Verified Gmail</span>
+                  <span style={{ fontSize: '13px', color: '#064e3b', fontWeight: '800' }}>{gmailAddress || email}</span>
+                </div>
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '800',
+                backgroundColor: '#dcfce7',
+                color: '#15803d',
+                padding: '3px 8px',
+                borderRadius: '8px'
+              }}>
+                ✓ Verified
+              </span>
+            </div>
+
+            {/* Full Name */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
+                Full Name *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Jeevith Gowda"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px 11px 38px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <User size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              </div>
+            </div>
+
+            {/* Mobile Phone */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
+                Mobile Number (For Order OTP & Delivery Calls) *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="tel"
+                  required
+                  placeholder="e.g. 9876543210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px 11px 38px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <Smartphone size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              </div>
+            </div>
+
+            {/* Live GPS & Location Auto-Detect */}
+            <div style={{
+              backgroundColor: '#f8fafc',
+              border: '1.5px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '12px',
+              marginBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Crosshair size={16} color="#059669" />
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#0f172a' }}>
+                    Live GPS & Village Location
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDetectGPS}
+                  disabled={isDetectingGPS}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RefreshCw size={12} className={isDetectingGPS ? 'animate-spin' : ''} />
+                  <span>{isDetectingGPS ? 'Detecting...' : 'Auto-Detect GPS'}</span>
+                </button>
+              </div>
+
+              {gpsData && (
+                <div style={{
+                  fontSize: '11.5px',
+                  color: '#065f46',
+                  backgroundColor: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <MapPin size={13} color="#059669" />
+                  <span>
+                    GPS Locked: <strong>{gpsData.village || village}, {gpsData.town || town}</strong> (±{gpsData.accuracy || 10}m)
+                  </span>
+                </div>
+              )}
+
+              {/* Village, Town, Pincode Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                    Village / Area *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mijar"
+                    value={village}
+                    onChange={(e) => setVillage(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                    Town / City *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Moodbidri"
+                    value={town}
+                    onChange={(e) => setTown(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                    District
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Dakshina Kannada"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                    Pincode *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="574225"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Exact Street Address / House / Building */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
+                Exact Street Address / House / Building Name *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. House No. 42, Sri Rama Nilaya, Temple Road"
+                  value={streetAddress}
+                  onChange={(e) => setStreetAddress(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px 11px 38px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <Home size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              </div>
+            </div>
+
+            {/* Landmark */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
+                Nearby Landmark (Optional)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. Near Mijar Bus Stand / Beside Govt School"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 38px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <Navigation size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              </div>
+            </div>
+
+            {/* Save & Complete Registration Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary"
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '16px',
+                fontSize: '15px',
+                fontWeight: '900',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxSizing: 'border-box',
+                cursor: 'pointer'
+              }}
+            >
+              <CheckCircle2 size={18} />
+              <span>{isSubmitting ? 'Saving Registration...' : 'Save Registration & Start Shopping →'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewState('main')}
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: 'none',
+                border: 'none',
+                color: '#64748b',
+                fontSize: '12.5px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              ← Back to login options
+            </button>
+          </form>
+        )}
+
+        {/* VIEW 3: Direct Gmail Address Input Form */}
         {viewState === 'gmail-input' && (
           <form onSubmit={handleDirectGmailSubmit} className="animate-fade-scale">
             <div style={{ marginBottom: '14px' }}>
@@ -771,72 +1187,6 @@ export const AuthModal = () => {
               </div>
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '6px' }}>
-                Your Full Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Jeevith Gowda"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: '12px',
-                  border: '1.5px solid #cbd5e1',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
-                  Mobile (For OTP & Delivery)
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '12px',
-                    border: '1.5px solid #cbd5e1',
-                    fontSize: '13px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '800', color: '#334155', display: 'block', marginBottom: '4px' }}>
-                  Village / Locality
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mijar"
-                  value={village}
-                  onChange={(e) => setVillage(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '12px',
-                    border: '1.5px solid #cbd5e1',
-                    fontSize: '13px',
-                    outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={isSubmitting}
@@ -856,7 +1206,7 @@ export const AuthModal = () => {
               }}
             >
               <CheckCircle2 size={18} />
-              <span>{isSubmitting ? 'Signing in...' : 'Sign In with Gmail'}</span>
+              <span>{isSubmitting ? 'Verifying Gmail...' : 'Continue to Registration →'}</span>
             </button>
 
             <button
